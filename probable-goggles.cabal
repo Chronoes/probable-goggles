@@ -19,7 +19,7 @@ synopsis:            A shitty HTTP server for practice
 -- description:
 
 -- The license under which the package is released.
-license:             WTFPLv2
+license:             OtherLicense
 
 -- The file containing the license text.
 license-file:        LICENSE
@@ -49,7 +49,7 @@ cabal-version:       >=1.10
 
 library
   -- Modules exported by the library.
-  -- exposed-modules:
+  exposed-modules:     Parser
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -59,11 +59,19 @@ library
 
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.9 && <4.10,
-                       network-simple,
                        bytestring
 
   -- Directories containing source files.
   hs-source-dirs:      src
 
   -- Base language which the package is written in.
+  default-language:    Haskell2010
+
+executable server
+  main-is:             Main.hs
+  build-depends:       base >=4.9 && <4.10,
+                       network-simple,
+                       bytestring,
+                       probable-goggles
+  hs-source-dirs:      .
   default-language:    Haskell2010
