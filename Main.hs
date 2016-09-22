@@ -8,7 +8,7 @@ main = serve HostAny "1337" $ \(connectionSocket, remoteAddr) -> do
     putStrLn $ "TCP connection established from " ++ show remoteAddr
     req <- recv connectionSocket 1024
 
-    let request = BS.lines . fromMaybe BS.empty $ req
-    print . getRequestAndHeaders $ request
+    let (request, body) = splitHeadersFromBody . fromMaybe BS.empty $ req
+    print . parseRequestAndHeaders $ request
 
-    send connectionSocket $ makeResponse (Response (BS.pack "HTTP/1.1") 200) []
+    send connectionSocket $ showAllHeaders (Response (BS.pack "HTTP/1.1") 200) []
