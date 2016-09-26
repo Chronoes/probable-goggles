@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module ByteStringOps where
 
 import Data.Char (isSpace)

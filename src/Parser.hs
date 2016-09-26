@@ -1,12 +1,16 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Parser (
+Method(..),
 RequestResponse(..),
-Header,
-splitHeadersFromBody,
+Header(..),
+Body,
+HTTPDocument,
+httpProtocol,
+newRequest,
+newResponse,
+splitHeadFromBody,
 parseRequestAndHeaders,
 parseResponseAndHeaders,
-showAllHeaders
+makeHTTPDocument
 )
 where
 
@@ -15,19 +19,25 @@ import Data.Maybe (fromMaybe)
 import qualified Data.ByteString.Char8 as BS
 
 
+type Body = BS.ByteString
+type HTTPDocument = (RequestResponse, [Header], Maybe Body)
+
 eol :: BS.ByteString -> BS.ByteString
 eol = (`BS.append` "\r\n")
 
 endOfHeader :: BS.ByteString -> Bool
 endOfHeader t = BS.null t || t == "\r"
 
-splitHeadersFromBody :: BS.ByteString -> ([BS.ByteString], [BS.ByteString])
-splitHeadersFromBody = break endOfHeader . BS.lines
+splitHeadFromBody :: BS.ByteString -> ([BS.ByteString], Maybe Body)
+splitHeadFromBody b = case components of
+        (h, [""]) -> (h, Nothing)
+        (h, body) -> (h, Just . BS.unlines $ body)
+    where components = break endOfHeader . BS.lines $ b
 
 
 data Header = Header {
-    name :: BS.ByteString,
-    value :: BS.ByteString
+    headerName :: BS.ByteString,
+    headerValue :: BS.ByteString
 } deriving (Eq, Ord, Show)
 
 instance ShowBS Header where
@@ -41,24 +51,44 @@ instance ReadBS Header where
 headersToString :: [Header] -> BS.ByteString
 headersToString = BS.concat . map (eol . showBS)
 
+hasHeader :: [Header] -> BS.ByteString -> Bool
+infix 4 `hasHeader`
+hasHeader [] _ = False
+hasHeader _ "" = False
+hasHeader xs s = elem s . map headerName $ xs
+
+httpProtocol :: BS.ByteString
+httpProtocol = "HTTP/1.1"
+
+data Method = GET | POST deriving (Eq, Show, Read)
+
+instance ShowBS Method where
+    showBS GET = "GET"
+    showBS POST = "POST"
+
+instance ReadBS Method where
+    readBS "GET" = GET
+    readBS "POST" = POST
 
 data RequestResponse = Request {
-    method :: BS.ByteString,
-    uri :: BS.ByteString,
-    reqProtocol :: BS.ByteString
+    reqProtocol :: BS.ByteString,
+    method :: Method,
+    uri :: BS.ByteString
 } | Response {
     resProtocol :: BS.ByteString,
     statusCode :: Int
 } deriving (Eq, Show)
 
-
 instance ShowBS RequestResponse where
-    showBS (Request m u p) = BS.unwords [m, u, p]
+    showBS (Request m u p) = BS.unwords [m, showBS u, p]
     showBS (Response p s) = BS.unwords [p, getStatusText s]
 
 
+newRequest = Request httpProtocol
+newResponse = Response httpProtocol
+
 parseRequest :: BS.ByteString -> RequestResponse
-parseRequest b = Request (head list) (list !! 1) (list !! 2)
+parseRequest b = Request (list !! 2) (readBS . head $ list) (list !! 1)
     where list = BS.words b
 
 parseResponse :: BS.ByteString -> RequestResponse
@@ -82,3 +112,7 @@ showAllHeaders :: RequestResponse -> [Header] -> BS.ByteString
 showAllHeaders r = eol
     . BS.append (eol . showBS $ r)
     . headersToString
+
+makeHTTPDocument :: HTTPDocument -> BS.ByteString
+makeHTTPDocument (r, h, Nothing) = showAllHeaders r (Header "Content-Length" "0" : h)
+makeHTTPDocument (r, h, Just b) = showAllHeaders r (Header "Content-Length" (BS.pack . show . BS.length $ b) : h) `BS.append` b
