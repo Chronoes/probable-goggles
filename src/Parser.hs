@@ -8,8 +8,8 @@ httpProtocol,
 newRequest,
 newResponse,
 splitHeadFromBody,
-parseRequestAndHeaders,
-parseResponseAndHeaders,
+parseRequestHead,
+parseResponseHead,
 makeHTTPDocument
 )
 where
@@ -20,7 +20,8 @@ import qualified Data.ByteString.Char8 as BS
 
 
 type Body = BS.ByteString
-type HTTPDocument = (RequestResponse, [Header], Maybe Body)
+type Head = (RequestResponse, [Header])
+type HTTPDocument = (Head, Maybe Body)
 
 eol :: BS.ByteString -> BS.ByteString
 eol = (`BS.append` "\r\n")
@@ -28,10 +29,10 @@ eol = (`BS.append` "\r\n")
 endOfHeader :: BS.ByteString -> Bool
 endOfHeader t = BS.null t || t == "\r"
 
-splitHeadFromBody :: BS.ByteString -> ([BS.ByteString], Maybe Body)
-splitHeadFromBody b = case components of
-        (h, [""]) -> (h, Nothing)
-        (h, body) -> (h, Just . BS.unlines $ body)
+splitHeadFromBody :: ([BS.ByteString] -> Head) -> BS.ByteString -> (Head, Maybe Body)
+splitHeadFromBody f b = case components of
+        (h, [""]) -> (f h, Nothing)
+        (h, body) -> (f h, Just . BS.unlines $ body)
     where components = break endOfHeader . BS.lines $ b
 
 
@@ -95,12 +96,12 @@ parseResponse :: BS.ByteString -> RequestResponse
 parseResponse b = Response protocol (fst . fromMaybe (0, "") . BS.readInt $ status)
     where (protocol, status) = BS.break (== ' ') b
 
-parseReqResAndHeaders :: (BS.ByteString -> RequestResponse) -> [BS.ByteString] -> (RequestResponse, [Header])
-parseReqResAndHeaders f req = (f . head $ req, map readBS .  tail $ req)
+parseHead :: (BS.ByteString -> RequestResponse) -> [BS.ByteString] -> Head
+parseHead f req = (f . head $ req, map readBS .  tail $ req)
 
-parseRequestAndHeaders = parseReqResAndHeaders parseRequest
+parseRequestHead = parseHead parseRequest
 
-parseResponseAndHeaders = parseReqResAndHeaders parseResponse
+parseResponseHead = parseHead parseResponse
 
 getStatusText :: Int -> BS.ByteString
 getStatusText 200 = "200 OK"
@@ -108,11 +109,11 @@ getStatusText 400 = "400 Bad Request"
 getStatusText 404 = "404 Not Found"
 getStatusText _ = error "Status code does not exist"
 
-showAllHeaders :: RequestResponse -> [Header] -> BS.ByteString
-showAllHeaders r = eol
+showHead :: RequestResponse -> [Header] -> BS.ByteString
+showHead r = eol
     . BS.append (eol . showBS $ r)
     . headersToString
 
 makeHTTPDocument :: HTTPDocument -> BS.ByteString
-makeHTTPDocument (r, h, Nothing) = showAllHeaders r (Header "Content-Length" "0" : h)
-makeHTTPDocument (r, h, Just b) = showAllHeaders r (Header "Content-Length" (BS.pack . show . BS.length $ b) : h) `BS.append` b
+makeHTTPDocument ((r, h), Nothing) = showHead r (Header "Content-Length" "0" : h)
+makeHTTPDocument ((r, h), Just b) = showHead r (Header "Content-Length" (BS.pack . show . BS.length $ b) : h) `BS.append` b

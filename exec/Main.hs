@@ -1,23 +1,23 @@
 import Network.Simple.TCP
 import qualified Data.ByteString.Char8 as BS
-import Data.Maybe
-import System.Environment
+import Data.Maybe (fromMaybe)
+import System.Environment (getArgs)
 
 import Parser
 import Handler
 
-server :: String -> IO()
+server :: ServiceName -> IO()
 server port = serve HostAny port $ \(connectionSocket, remoteAddr) -> do
     putStrLn $ "TCP connection established from " ++ show remoteAddr
     req <- recv connectionSocket 1024
 
-    let (request, body) = splitHeadFromBody . fromMaybe BS.empty $ req
-    let (req, headers) = parseRequestAndHeaders request
-    print req
+    let doc = splitHeadFromBody parseRequestHead . fromMaybe BS.empty $ req
+    let ((request, headers), body) = doc
+    print request
     print headers
-    let (res, headers, body) = handleRequest (req, headers, body)
+    let res = handleRequest doc
 
-    send connectionSocket $ makeHTTPDocument (res, headers, body)
+    send connectionSocket $ makeHTTPDocument res
 
 
 main = do
