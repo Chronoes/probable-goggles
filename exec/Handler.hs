@@ -9,7 +9,7 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Maybe (fromJust, fromMaybe)
 import qualified Database.SQLite.Simple as DB
 
-import Parser
+import Network.HTTP.Parser
 import ConfigParser (Config)
 
 userAgent :: Header

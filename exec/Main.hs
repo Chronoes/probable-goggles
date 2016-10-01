@@ -3,7 +3,7 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Maybe (fromJust)
 import System.Environment (getArgs)
 
-import Parser
+import Network.HTTP.Parser
 import Handler
 import qualified ConfigParser as C
 

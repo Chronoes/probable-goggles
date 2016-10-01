@@ -1,4 +1,4 @@
-module Parser (
+module Network.HTTP.Parser (
 StdMethod(..),
 RequestResponse(..),
 Header,
@@ -20,7 +20,7 @@ import Network.HTTP.Types.Method
 import Network.HTTP.Types.Status
 import qualified Data.CaseInsensitive as CI
 
-import ByteStringOps (trim)
+import Data.ByteString.Char8.Ops (trim)
 import Data.Maybe (fromMaybe)
 import qualified Data.ByteString.Char8 as BS
 

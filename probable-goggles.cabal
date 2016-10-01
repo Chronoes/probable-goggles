@@ -49,10 +49,11 @@ cabal-version:       >=1.10
 
 library
   -- Modules exported by the library.
-  exposed-modules:     Parser
+  exposed-modules:     Network.HTTP.Parser,
+                       Data.ByteString.Char8.Ops
 
   -- Modules included in this library but not exported.
-  other-modules:       ByteStringOps
+  -- other-modules:
 
   -- LANGUAGE extensions used by modules in this package.
   default-extensions:  OverloadedStrings

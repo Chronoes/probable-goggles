@@ -1,4 +1,4 @@
-module ByteStringOps where
+module Data.ByteString.Char8.Ops where
 
 import Data.Char (isSpace)
 import qualified Data.ByteString.Char8 as BS
