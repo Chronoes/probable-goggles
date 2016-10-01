@@ -59,7 +59,9 @@ library
 
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.9 && <4.10,
-                       bytestring
+                       bytestring,
+                       http-types >=0.9 && <1.0,
+                       case-insensitive
 
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -77,6 +79,7 @@ executable server
                        bytestring,
                        http-types >=0.9 && <1.0,
                        text,
+                       sqlite-simple >=0.4 && <0.5,
                        probable-goggles
 
   hs-source-dirs:      exec
