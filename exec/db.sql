@@ -1,15 +1,15 @@
 -- DROP TABLE neighbours;
+-- DROP TABLE requests;
+-- DROP TABLE routing;
 
 CREATE TABLE neighbours (
     neighbour_id integer PRIMARY KEY,
-    ip text NOT NULL,
+    ip varchar(15) NOT NULL CHECK (ip LIKE '%_.%_.%_.%_'),
     is_alive boolean NOT NULL DEFAULT TRUE
 );
 
 CREATE INDEX idx_neighbour_ip ON neighbours (ip);
 
-
--- DROP TABLE requests;
 
 CREATE TABLE requests (
     request_id integer PRIMARY KEY,
@@ -18,15 +18,17 @@ CREATE TABLE requests (
 );
 
 
--- DROP TABLE routing;
-
 CREATE TABLE routing (
     request_id integer NOT NULL,
-    download_ip text,
-    file_ip text,
+    download_ip varchar(15),
+    file_ip varchar(15),
     CONSTRAINT fk_requests_request_id FOREIGN KEY (request_id)
         REFERENCES requests (request_id)
-        ON UPDATE NO ACTION ON DELETE CASCADE
+        ON UPDATE NO ACTION ON DELETE CASCADE,
+    CONSTRAINT chk_at_least_one_ip_present CHECK (
+        download_ip IS NOT NULL AND download_ip LIKE '%_.%_.%_.%_'
+        OR file_ip IS NOT NULL AND file_ip LIKE '%_.%_.%_.%_'
+    )
 );
 
 CREATE INDEX idx_download_ip ON routing (download_ip);
