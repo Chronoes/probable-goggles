@@ -1,7 +1,6 @@
 module ConfigParser where
 
 import Data.Char (isSpace)
-import Data.String (IsString)
 
 type Config = (String, String)
 
@@ -16,7 +15,7 @@ splitKeyValue s = (trim key, trim $ tail val)
 
 isCommentOrEmpty :: String -> Bool
 isCommentOrEmpty "" = True
-isCommentOrEmpty (x:xs) = x /= ';'
+isCommentOrEmpty (x:xs) = x == ';'
 
 parseFile :: String -> [Config]
-parseFile = map splitKeyValue . filter isCommentOrEmpty . lines
+parseFile = map splitKeyValue . filter (not . isCommentOrEmpty) . lines

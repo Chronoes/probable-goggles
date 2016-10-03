@@ -4,7 +4,8 @@ import Data.Maybe (fromJust)
 import System.Environment (getArgs)
 
 import Network.HTTP.Parser
-import Handler
+import Handler.Request
+import Handler.Response
 import qualified ConfigParser as C
 
 {-
@@ -13,7 +14,7 @@ import qualified ConfigParser as C
 -}
 
 server :: ServiceName -> [C.Config] -> IO()
-server port conf = let handleRequest = Handler.handleRequest . fromJust $ lookup "db" conf in
+server port conf = let handleRequest = Handler.Request.handleRequest . fromJust $ lookup "db" conf in
     serve HostAny port $ \(connectionSocket, remoteAddr) -> do
         putStrLn $ "TCP connection established from " ++ show remoteAddr
         req <- recv connectionSocket 1024

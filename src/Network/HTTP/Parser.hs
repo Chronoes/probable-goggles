@@ -11,18 +11,19 @@ splitHeadFromBody,
 parseRequestHead,
 parseResponseHead,
 renderStdMethod,
-renderHTTPDocument
+renderHTTPDocument,
+addHeader
 )
 where
 
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
 import Network.HTTP.Types.Status
+import Data.Maybe (fromMaybe)
 import qualified Data.CaseInsensitive as CI
+import qualified Data.ByteString.Char8 as BS
 
 import Data.ByteString.Char8.Ops (trim)
-import Data.Maybe (fromMaybe)
-import qualified Data.ByteString.Char8 as BS
 
 
 
@@ -86,8 +87,8 @@ newResponse = Response httpProtocol
 parseRequest, parseResponse :: BS.ByteString -> RequestResponse
 parseRequest b = Request (list !! 2) (method . parseMethod $ head list) (list !! 1)
     where list = BS.words b
-          method (Left m) = GET
           method (Right m) = m
+          method _ = GET
 
 parseResponse b = Response protocol (status $ BS.readInt s)
     where (protocol, s) = BS.break (== ' ') b
@@ -110,3 +111,6 @@ renderHead r = eol
 renderHTTPDocument :: HTTPDocument -> BS.ByteString
 renderHTTPDocument ((r, h), Nothing) = renderHead r ((hContentLength, "0") : h)
 renderHTTPDocument ((r, h), Just b) = renderHead r ((hContentLength, BS.pack . show $ BS.length b) : h) `BS.append` b
+
+addHeader :: Header -> HTTPDocument -> HTTPDocument
+addHeader h ((r, hs), b) = ((r, h:hs), b)

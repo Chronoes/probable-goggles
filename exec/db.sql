@@ -1,3 +1,4 @@
+-- DROP VIEW alive_neighbours;
 -- DROP TABLE neighbours;
 -- DROP TABLE requests;
 -- DROP TABLE routing;
@@ -5,10 +6,21 @@
 CREATE TABLE neighbours (
     neighbour_id integer PRIMARY KEY,
     ip varchar(15) NOT NULL CHECK (ip LIKE '%_.%_.%_.%_'),
-    is_alive boolean NOT NULL DEFAULT TRUE
+    port varchar(5) NOT NULL,
+    is_alive boolean NOT NULL DEFAULT 1
 );
 
 CREATE INDEX idx_neighbour_ip ON neighbours (ip);
+
+CREATE VIEW alive_neighbours AS
+SELECT
+    neighbour_id,
+    ip,
+    port
+FROM
+    neighbours
+WHERE
+    is_alive = 1;
 
 
 CREATE TABLE requests (
