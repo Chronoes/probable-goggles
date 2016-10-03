@@ -6,6 +6,7 @@ import System.Environment (getArgs)
 import Network.HTTP.Parser
 import Handler.Request
 import Handler.Response
+import Handler.Client
 import qualified ConfigParser as C
 
 {-
@@ -14,19 +15,19 @@ import qualified ConfigParser as C
 -}
 
 server :: ServiceName -> [C.Config] -> IO()
-server port conf = let handleRequest = Handler.Request.handleRequest . fromJust $ lookup "db" conf in
-    serve HostAny port $ \(connectionSocket, remoteAddr) -> do
-        putStrLn $ "TCP connection established from " ++ show remoteAddr
-        req <- recv connectionSocket 1024
+server port conf = serve HostAny port $ \(connectionSocket, remoteAddr) -> do
+    putStrLn $ "TCP connection established from " ++ show remoteAddr
+    req <- recv connectionSocket 1024
 
-        let doc = splitHeadFromBody parseRequestHead $ fromJust req
-        let ((request, headers), body) = doc
-        print request
-        print headers
-        res <- handleRequest (takeWhile (/= ':') $ show remoteAddr) doc
+    let doc = splitHeadFromBody parseRequestHead $ fromJust req
+    let ((request, headers), body) = doc
+    print request
+    print headers
+    res <- handleRequest (takeWhile (/= ':') $ show remoteAddr) doc
 
-        send connectionSocket $ renderHTTPDocument res
+    send connectionSocket . renderHTTPDocument $ addUserAgent res
 
+    where handleRequest = Handler.Request.handleRequest . fromJust $ lookup "db" conf
 
 readConfig :: String -> IO [C.Config]
 readConfig f = do

@@ -1,5 +1,4 @@
 module Handler.Request (
-userAgent,
 handleRequest
 ) where
 
@@ -15,12 +14,6 @@ import qualified Database.SQLite.Simple as DB
 
 import Network.HTTP.Parser
 import Handler.Client
-
-userAgent :: Header
-userAgent = (hUserAgent, "probable-goggles/0.1.0.0")
-
-addUserAgent :: HTTPDocument -> HTTPDocument
-addUserAgent = addHeader userAgent
 
 _handleDownload :: String -> Int -> String -> String -> IO Bool
 _handleDownload db reqId url ip = DB.withConnection db $ \dbc -> do
@@ -79,12 +72,10 @@ handleNotFound p m = return (
 
 
 handleRequest :: String -> String -> HTTPDocument -> IO HTTPDocument
-handleRequest db addr ((r, h), b) = do
-    doc <- case (method r, path) of
-        (GET, "/download") -> handleDownload db addr query
-        (POST, "/file") -> handleFile db addr query
-        (m, _) -> handleNotFound path m
+handleRequest db addr ((r, h), b) = case (method r, path) of
+    (GET, "/download") -> handleDownload db addr query
+    (POST, "/file") -> handleFile db addr query
+    (m, _) -> handleNotFound path m
 
-    return $ addUserAgent doc
     where (path, queryString) = BS.break (== '?') . uri $ r
           query = parseSimpleQuery . BS.tail $ queryString
