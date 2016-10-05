@@ -109,7 +109,7 @@ renderHead r = eol
     . renderHeaders
 
 renderHTTPDocument :: HTTPDocument -> BS.ByteString
-renderHTTPDocument ((r, h), Nothing) = renderHead r ((hContentLength, "0") : h)
+renderHTTPDocument ((r, h), Nothing) = renderHead r h
 renderHTTPDocument ((r, h), Just b) = renderHead r ((hContentLength, BS.pack . show $ BS.length b) : h) `BS.append` b
 
 addHeader :: Header -> HTTPDocument -> HTTPDocument

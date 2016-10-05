@@ -10,8 +10,7 @@ import Handler.Client
 import qualified ConfigParser as C
 
 {-
-    TODO: Thread to periodically contact directory service (data must be shared with main thread)
-    TODO: Store info about requests
+    TODO: Thread to periodically contact directory service (data saved to DB)
 -}
 
 server :: ServiceName -> [C.Config] -> IO()
@@ -23,11 +22,13 @@ server port conf = serve HostAny port $ \(connectionSocket, remoteAddr) -> do
     let ((request, headers), body) = doc
     print request
     print headers
-    res <- handleRequest (takeWhile (/= ':') $ show remoteAddr) doc
+    res <- handleRequest (getIp remoteAddr, port) doc
 
     send connectionSocket . renderHTTPDocument $ addUserAgent res
 
-    where handleRequest = Handler.Request.handleRequest . fromJust $ lookup "db" conf
+    where handleRequest = Handler.Request.handleRequest confLookup
+          confLookup a = fromJust $ lookup a conf
+          getIp = takeWhile (/= ':') . show
 
 readConfig :: String -> IO [C.Config]
 readConfig f = do
