@@ -19,14 +19,14 @@ server port conf = serve HostAny port $ \(connectionSocket, remoteAddr) -> do
     req <- recv connectionSocket 1024
 
     let doc = splitHeadFromBody parseRequestHead $ fromJust req
-    let ((request, headers), body) = doc
-    print request
-    print headers
-    res <- handleRequest (getIp remoteAddr, port) doc
+    print doc
+    res <- handleRequest remoteAddr doc
 
-    send connectionSocket . renderHTTPDocument $ addUserAgent res
+    let resDoc = renderHTTPDocument $ addUserAgent res
+    print resDoc
+    send connectionSocket resDoc
 
-    where handleRequest = Handler.Request.handleRequest confLookup
+    where handleRequest addr = Handler.Request.handleRequest confLookup (getIp addr, port)
           confLookup a = fromJust $ lookup a conf
           getIp = takeWhile (/= ':') . show
 

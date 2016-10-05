@@ -171,11 +171,12 @@ handleNotFound path m = return (
 
 
 handleRequest :: (String -> String) -> (HostName, ServiceName) -> HTTPDocument -> IO HTTPDocument
-handleRequest conf client ((r, h), b) = case (method r, path) of
-    (GET, "/download") -> handleDownload db (read $ conf "laziness" :: Float) client query
-    (POST, "/file") -> handleFile db client query b
-    (m, _) -> handleNotFound path m
+handleRequest conf client ((r, h), b) =
+    case (method r, path) of
+        (GET, "/download") -> handleDownload db (read $ conf "laziness" :: Float) client query
+        (POST, "/file") -> handleFile db client query b
+        (m, _) -> handleNotFound path m
 
-    where (path, queryString) = BS.break (== '?') . uri $ r
+    where (path, queryString) = BS.break (== '?') $ uri r
           query = parseSimpleQuery . BS.tail $ queryString
           db = conf "db"

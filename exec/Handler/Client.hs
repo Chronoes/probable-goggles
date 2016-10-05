@@ -30,13 +30,16 @@ addUserAgent = addHeader (hUserAgent, userAgent)
 -- TODO: recv on socket, consider adjusting size
 sendRequest :: HTTPDocument -> (HostName, ServiceName) -> IO HTTPDocument
 sendRequest doc (host, port) = connect host port $ \(connectionSocket, remoteAddr) -> do
-    putStrLn $ "Connection established to " ++ show remoteAddr
+    putStrLn $ "TCP connection established to " ++ show remoteAddr
 
-    -- print . renderHTTPDocument . addHeader (hHost, BS.pack host) $ addUserAgent doc
-    send connectionSocket . renderHTTPDocument . addHeader (hHost, BS.pack host) $ addUserAgent doc
+    let reqDoc = renderHTTPDocument . addHeader (hHost, BS.pack host) $ addUserAgent doc
+    print reqDoc
+    send connectionSocket reqDoc
 
     res <- recv connectionSocket 1024
-    return . splitHeadFromBody parseResponseHead $ fromJust res
+    let resDoc = splitHeadFromBody parseResponseHead $ fromJust res
+    print resDoc
+    return resDoc
 
 
 concatPath :: BS.ByteString -> SimpleQuery -> BS.ByteString

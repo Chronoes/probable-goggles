@@ -51,10 +51,12 @@ endOfHeader "" = True
 endOfHeader t = t == "\r"
 
 splitHeadFromBody :: ([BS.ByteString] -> Head) -> BS.ByteString -> (Head, Maybe Body)
-splitHeadFromBody f b = case components of
-        (h, [""]) -> (f h, Nothing)
-        (h, body) -> (f h, Just . BS.unlines $ body)
-    where components = break endOfHeader . BS.lines $ b
+splitHeadFromBody f b = case body of
+        [] -> (f h, Nothing)
+        [""] -> (f h, Nothing)
+        _ -> (f h, Just . BS.unlines $ body)
+    where (h, b') = break endOfHeader . BS.lines $ b
+          body = tail b'
 
 
 parseHeader :: BS.ByteString -> Header
@@ -85,15 +87,21 @@ newResponse :: Status -> RequestResponse
 newResponse = Response httpProtocol
 
 parseRequest, parseResponse :: BS.ByteString -> RequestResponse
-parseRequest b = Request (list !! 2) (method . parseMethod $ head list) (list !! 1)
-    where list = BS.words b
+parseRequest b = Request p (method $ parseMethod m) uri
+    where [m, uri, p] = BS.words b
           method (Right m) = m
           method _ = GET
 
-parseResponse b = Response protocol (status $ BS.readInt s)
-    where (protocol, s) = BS.break (== ' ') b
-          status (Just (c, m)) = mkStatus c m
-          status Nothing = badRequest400
+
+_parseStatus :: Maybe (Int, BS.ByteString) -> Status
+_parseStatus (Just (c, m)) = mkStatus c m
+_parseStatus Nothing = mkStatus 599 "Broken response"
+
+parseStatus :: BS.ByteString -> Status
+parseStatus = _parseStatus . BS.readInt
+
+parseResponse b = Response protocol (parseStatus $ BS.unwords s)
+    where protocol:s = BS.words b
 
 parseHead :: (BS.ByteString -> RequestResponse) -> [BS.ByteString] -> Head
 parseHead f req = (f $ head req, map parseHeader $ tail req)
