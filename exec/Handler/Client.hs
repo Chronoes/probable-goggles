@@ -1,66 +1,53 @@
 module Handler.Client (
+module Network.HTTP.Client,
+StdResponse,
 userAgent,
-addUserAgent,
 downloadFromURL,
 sendDownloadRequest,
 sendFileRequest
 ) where
 
-import Data.Maybe (fromJust)
-import Network.Simple.TCP
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS (tlsManagerSettings)
-import Network.HTTP.Types.URI (SimpleQuery, renderSimpleQuery)
-import Network.HTTP.Types.Header
-import Network.HTTP.Types.Status (statusCode)
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy.Char8 as LBS
+import Network.HTTP.Types.Header (Header, hUserAgent)
+import Happstack.Server (Host)
 
-import Network.HTTP.Parser
-import Handler.Response
+import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Char8 as S
+import qualified Data.Aeson as JSON
 
-userAgent :: BS.ByteString
-userAgent = "probable-goggles/0.1.0.0"
+import Handler.Types
 
-addUserAgent :: HTTPDocument -> HTTPDocument
-addUserAgent = addHeader (hUserAgent, userAgent)
+type StdResponse = Response L.ByteString
 
+userAgent :: Header
+userAgent = (hUserAgent, "probable-goggles/0.1.0.0")
 
--- TODO: Handle faulty connections (host is down or not responding)
--- TODO: recv on socket, consider adjusting size
-sendRequest :: HTTPDocument -> (HostName, ServiceName) -> IO HTTPDocument
-sendRequest doc (host, port) = connect host port $ \(connectionSocket, remoteAddr) -> do
-    putStrLn $ "TCP connection established to " ++ show remoteAddr
-
-    let reqDoc = renderHTTPDocument . addHeader (hHost, BS.pack host) $ addUserAgent doc
-    print reqDoc
-    send connectionSocket reqDoc
-
-    res <- recv connectionSocket 1024
-    let resDoc = splitHeadFromBody parseResponseHead $ fromJust res
-    print resDoc
-    return resDoc
-
-
-concatPath :: BS.ByteString -> SimpleQuery -> BS.ByteString
-concatPath path = BS.append path . renderSimpleQuery True
-
-downloadFromURL :: String -> IO HTTPDocument
-downloadFromURL url = do
+sendRequest :: Request -> IO StdResponse
+sendRequest r = do
     manager <- newManager tlsManagerSettings
+    httpLbs r { requestHeaders = userAgent : requestHeaders r } manager
 
-    request <- parseRequest url
-    response <- httpLbs request manager
+convertToValue :: (Show a) => a -> Maybe S.ByteString
+convertToValue = Just . S.pack . show
 
-    -- putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
+setHost :: Host -> Request -> Request
+setHost (ip, port) r = r { host = S.pack ip, port = port }
 
-    return ((newResponse $ responseStatus response, responseHeaders response), Just . LBS.toStrict $ responseBody response)
+sendDownloadRequest :: Int -> String -> Host -> IO StdResponse
+sendDownloadRequest reqId url host =
+    sendRequest
+    . setHost host
+    . setQueryString [("id", convertToValue reqId), ("url", convertToValue url)]
+    $ defaultRequest { method = "GET", path = "/download" }
 
-sendDownloadRequest :: SimpleQuery -> (HostName, ServiceName) -> IO HTTPDocument
-sendDownloadRequest q = sendRequest ((newRequest GET $ concatPath "/download" q, [(hAccept, "*/*")]), Nothing)
+sendFileRequest :: Int -> FileBody -> Host -> IO StdResponse
+sendFileRequest reqId b host =
+    sendRequest
+    . setHost host
+    . setQueryString [("id", convertToValue reqId)]
+    $ defaultRequest { method = "POST", path = "/file", requestBody = RequestBodyLBS $ JSON.encode b }
 
-sendFileRequest :: SimpleQuery -> Body -> (HostName, ServiceName) -> IO HTTPDocument
-sendFileRequest q b = sendRequest (
-    (newRequest POST $ concatPath "/file" q,
-    [(hContentType, "application/json"), (hAccept, "*/*")]),
-    Just b)
+
+downloadFromURL :: String -> IO StdResponse
+downloadFromURL url = parseRequest url >>= sendRequest
