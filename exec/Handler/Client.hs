@@ -4,6 +4,7 @@ StdResponse,
 userAgent,
 downloadFromURL,
 sendDownloadRequest,
+sendRawFileRequest,
 sendFileRequest
 ) where
 
@@ -26,6 +27,7 @@ userAgent = (hUserAgent, "probable-goggles/0.1.0.0")
 sendRequest :: Request -> IO StdResponse
 sendRequest r = do
     manager <- newManager tlsManagerSettings
+    print r
     httpLbs r { requestHeaders = userAgent : requestHeaders r } manager
 
 convertToValue :: (Show a) => a -> Maybe S.ByteString
@@ -41,13 +43,14 @@ sendDownloadRequest reqId url host =
     . setQueryString [("id", convertToValue reqId), ("url", convertToValue url)]
     $ defaultRequest { method = "GET", path = "/download" }
 
-sendFileRequest :: Int -> FileBody -> Host -> IO StdResponse
-sendFileRequest reqId b host =
-    sendRequest
+sendRawFileRequest :: Int -> L.ByteString -> Host -> IO StdResponse
+sendRawFileRequest reqId b host = sendRequest
     . setHost host
     . setQueryString [("id", convertToValue reqId)]
-    $ defaultRequest { method = "POST", path = "/file", requestBody = RequestBodyLBS $ JSON.encode b }
+    $ defaultRequest { method = "POST", path = "/file", requestBody = RequestBodyLBS b }
 
+sendFileRequest :: Int -> FileBody -> Host -> IO StdResponse
+sendFileRequest reqId b = sendRawFileRequest reqId (JSON.encode b)
 
 downloadFromURL :: String -> IO StdResponse
 downloadFromURL url = parseRequest url >>= sendRequest
