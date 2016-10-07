@@ -1,0 +1,12 @@
+; Port to run on
+port = 1215
+; Database connection
+db = db.sqlite
+
+; Catalog service
+; Use file:// scheme to read peers from file
+; directory = file://peers.json
+directory = http://192.168.3.11:1215/getpeers
+
+; Laziness
+laziness = 0.9
