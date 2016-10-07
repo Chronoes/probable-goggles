@@ -17,7 +17,7 @@ server: conf
 	cp dist/build/server/server ./
 
 conf:
-	@cp server.conf.default $(conffile)
+	@cp -i server.conf.default $(conffile)
 
 initdb:
 ifeq ($(shell [ -e $(dbfile) ] && echo 1 || echo 0), 1)
