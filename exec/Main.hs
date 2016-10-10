@@ -15,7 +15,7 @@ import Handler.Client (StdResponse, downloadFromURL, responseBody, HttpException
 import qualified ConfigParser as C
 
 {-
-    TODO: Thread to periodically contact directory service (data saved to DB)
+    TODO: Some sort of control mechanism: command line (with sockets) or HTTP server on different port
 -}
 
 handleRequest :: (String -> String) -> Int -> ServerPart Response

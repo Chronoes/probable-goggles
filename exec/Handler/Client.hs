@@ -54,3 +54,4 @@ sendFileRequest reqId b = sendRawFileRequest reqId (JSON.encode b)
 
 downloadFromURL :: String -> IO StdResponse
 downloadFromURL url = parseRequest url >>= sendRequest
+    where standardUrl = if take 4 url /= "http" then "http://" ++ url else url

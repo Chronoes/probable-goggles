@@ -27,7 +27,7 @@ import Handler.Client as C
 import Handler.Response
 import Handler.Types
 
-
+-- /download related functions
 shouldDownload :: String -> Host -> Int -> String -> IO Bool
 shouldDownload db (ip, _) reqId url = DB.withConnection db $ \dbc -> do
     res <- DB.query dbc
@@ -83,8 +83,16 @@ tooLazyToDownload laziness True = do
     rand <- randomIO
     return $ (rand :: Float) >= laziness
 
+doDownload :: String -> Host -> Int -> String -> Float -> IO()
+doDownload db peer reqId url laziness = do
+    isLazy <- tooLazyToDownload laziness =<< shouldDownload db peer reqId url
+    forkIO $ handleDl isLazy
+    return ()
+    where handleDl True = forwardDownload db peer reqId url
+          handleDl False = initDownload peer reqId url
 
 
+-- /file related functions
 getDownloaderIp :: String -> Host -> Int -> IO (Either Bool Host)
 getDownloaderIp db (ip, port) reqId = DB.withConnection db $ \dbc -> do
     res <- DB.query dbc
@@ -125,6 +133,8 @@ forwardFile (Right downloader) _ _ i (Just b) = do
     forkIO $ sendRawFileRequest i (unBody b) downloader >>= handleResponse
     return Nothing
 
+
+-- HTTP Handlers
 download :: String -> Int -> Float -> ServerPart HS.Response
 download db sp laziness = do
     HS.method GET
@@ -135,14 +145,10 @@ download db sp laziness = do
             in do
             req <- askRq
             let peer = (fst $ rqPeer req, sp)
-            isLazy <- liftIO $ tooLazyToDownload laziness =<< shouldDownload db peer reqId url
-
-            liftIO . forkIO $ handleDl isLazy peer reqId url
+            liftIO $ doDownload db peer reqId url laziness
             ok $ toResponse ("OK" :: String)
         else
             badRequest $ toResponse ("Error: Parameter 'id' must be all digits" :: String)
-    where handleDl True = forwardDownload db
-          handleDl False = initDownload
 
 file :: String -> Int -> ServerPart HS.Response
 file db sp = do
