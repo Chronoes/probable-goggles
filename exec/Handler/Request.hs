@@ -59,8 +59,8 @@ contactNeighbours :: String -> Host -> (Host -> IO C.StdResponse) -> IO()
 contactNeighbours db (clientIp, _) action = DB.withConnection db $ \dbc -> do
     res <- DB.query dbc
         "SELECT ip, port FROM alive_neighbours WHERE ip <> ?"
-        (DB.Only clientIp) :: IO [Host]
-    forM_ res $ action >=> handleResponse
+        (DB.Only clientIp) :: IO [(String, String)]
+    forM_ res $ \(ip, port) -> action (ip, read port :: Int) >>= handleResponse
 
 forwardDownload :: String -> Host -> Int -> String -> IO()
 forwardDownload db peer i = contactNeighbours db peer . sendDownloadRequest i
