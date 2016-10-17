@@ -60,7 +60,7 @@ contactNeighbours db (clientIp, _) action = DB.withConnection db $ \dbc -> do
         "SELECT ip, port FROM alive_neighbours WHERE ip <> ?"
         (DB.Only clientIp) :: IO [(String, String)]
     forM_ res $ \(ip, port) ->
-        let peer = (ip, read port) in action peer >>= handleResponse peer
+        let peer = (ip, read port) in forkIO $ action peer >>= handleResponse peer
 
 forwardDownload :: String -> Host -> Int -> String -> IO()
 forwardDownload db peer i = contactNeighbours db peer . sendDownloadRequest i
@@ -113,7 +113,7 @@ forwardFile :: Either Bool Host -> String -> Host -> Int -> Maybe RqBody -> IO (
 forwardFile (Left False) _ _ reqId _ = return . Left . Just $ "Error: Seen request " ++ show reqId ++ " already"
 forwardFile _ _ _ _ Nothing = return . Left $ Just "Error: Request body empty"
 forwardFile (Left True) db peer i (Just b) = do
-    forkIO . contactNeighbours db peer . sendRawFileRequest i $ unBody b
+    contactNeighbours db peer . sendRawFileRequest i $ unBody b
     return $ Left Nothing
 forwardFile (Right ("127.0.0.1", _)) _ _ _ (Just b) =
     case JSON.decode $ unBody b of

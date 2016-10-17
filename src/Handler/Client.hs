@@ -29,8 +29,8 @@ sendRequest :: Request -> IO StdResponse
 sendRequest r = do
     manager <- newManager tlsManagerSettings
     putStrLn =<< (formatString . S.unpack $ S.unwords [method r, "request sent to", host r `S.append` ":" `S.append` (S.pack . show $ port r)])
-    let (RequestBodyLBS b) = requestBody r
-    print b
+    -- let (RequestBodyLBS b) = requestBody r
+    -- print b
     httpLbs r { requestHeaders = userAgent : requestHeaders r } manager
 
 setHost :: Host -> Request -> Request
