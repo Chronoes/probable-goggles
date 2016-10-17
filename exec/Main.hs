@@ -10,7 +10,7 @@ import System.Directory (createDirectoryIfMissing)
 import Happstack.Server (ServerPart, Response, Conf(..), Host, dir, nullConf, simpleHTTP)
 import qualified Data.Aeson as JSON
 import qualified Database.SQLite.Simple as DB
-import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy.Char8 as L
 
 import Routes
 import Logger
@@ -66,10 +66,11 @@ neighbourChecker db dir
             Left _ -> do
                 putStrLn =<< formatString "neighbours: No response from peer server"
                 continue
-            Right resp -> do
-                print $ responseBody resp
-                save $ responseBody resp
-                putStrLn =<< formatString "neighbours: neighbours added"
+            Right resp ->
+                let body = responseBody resp
+                in do
+                putStrLn =<< formatString ("neighbours: neighbours added: " ++ L.unpack body)
+                save body
 
     where sleep m = threadDelay $ m * 60 * 1000 * 1000
           continue = do
