@@ -131,7 +131,7 @@ forwardFile (Right ("127.0.0.1", _)) _ _ _ (Just b) =
         Just body -> return . handleFaultyBody . decodeContent $ rawContent body
     where handleFaultyBody (Left err) = Left . Just $ "Error: " ++ err
           handleFaultyBody (Right "") = Left $ Just "Error: Empty body"
-          handleFaultyBody (Right b) = Right b
+          handleFaultyBody (Right b) = Right (b :: L.ByteString)
 forwardFile (Right downloader) _ _ i (Just b) = do
     forkIO $ sendRawFileRequest i (unBody b) downloader >>= handleResponse
     return $ Left Nothing
