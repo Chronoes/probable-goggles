@@ -30,9 +30,6 @@ sendRequest r = do
     putStrLn . S.unpack $ S.unwords [method r, "request sent to", host r]
     httpLbs r { requestHeaders = userAgent : requestHeaders r } manager
 
-convertToValue :: (Show a) => a -> Maybe S.ByteString
-convertToValue = Just . S.pack . show
-
 setHost :: Host -> Request -> Request
 setHost (ip, port) r = r { host = S.pack ip, port = port }
 
@@ -40,13 +37,13 @@ sendDownloadRequest :: Int -> String -> Host -> IO StdResponse
 sendDownloadRequest reqId url host =
     sendRequest
     . setHost host
-    . setQueryString [("id", convertToValue reqId), ("url", convertToValue url)]
+    . setQueryString [("id", Just . S.pack $ show reqId), ("url", Just $ S.pack url)]
     $ defaultRequest { method = "GET", path = "/download" }
 
 sendRawFileRequest :: Int -> L.ByteString -> Host -> IO StdResponse
 sendRawFileRequest reqId b host = sendRequest
     . setHost host
-    . setQueryString [("id", convertToValue reqId)]
+    . setQueryString [("id", Just . S.pack $ show reqId)]
     $ defaultRequest { method = "POST", path = "/file", requestBody = RequestBodyLBS b }
 
 sendFileRequest :: Int -> FileBody -> Host -> IO StdResponse
