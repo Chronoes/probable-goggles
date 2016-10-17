@@ -112,7 +112,7 @@ file db servicePort cacheDir = do
                             logToStdout $ "/file: Failed reading body: " ++ err
                             badRequest $ toResponse err
                         Right _ -> do
-                            logToStdout $ "/file: Writing file to " ++ cacheDir ++ rid
+                            logToStdout $ "/file: Request accepted from " ++ fst peer ++ ", writing file to " ++ cacheDir ++ rid
                             liftIO $ L.writeFile (cacheDir ++ rid) (JSON.encode b)
                             ok $ toResponse ("OK" :: String)
         else
