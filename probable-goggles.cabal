@@ -46,7 +46,7 @@ extra-source-files:  README.md,
 cabal-version:       >=1.10
 
 library
-  default-extensions: OverloadedStrings
+  default-extensions: OverloadedStrings, FlexibleContexts
 
   exposed-modules:    ConfigParser,
                       Handler.Request,

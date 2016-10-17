@@ -16,12 +16,13 @@ download db servicePort laziness = do
     method GET
     rid <- look "id"
     url <- look "url"
-    port <- optional $ look "port"
+    port <- optional $ queryString $ look "port"
     if all isDigit rid
         then let reqId = read rid
             in do
             req <- askRq
             let peer = (fst $ rqPeer req, read $ fromMaybe (show servicePort) port)
+            liftIO $ print $ "Download request from " ++ fst peer
             liftIO $ doDownload db peer reqId url laziness
             ok $ toResponse ("OK" :: String)
         else
@@ -34,9 +35,10 @@ file db servicePort = do
     if all isDigit rid
         then let reqId = read rid
             in do
-            port <- optional $ look "port"
+            port <- optional $ queryString $ look "port"
             req <- askRq
             let peer = (fst $ rqPeer req, read $ fromMaybe (show servicePort) port)
+            liftIO $ print $ "File request from " ++ fst peer
             downloader <- liftIO $ getDownloaderIp db peer reqId
 
             result <- liftIO $ forwardFile downloader db peer reqId =<< takeRequestBody req
@@ -44,7 +46,7 @@ file db servicePort = do
                 Left (Just e) -> badRequest $ toResponse e
                 Left Nothing -> ok $ toResponse ("OK" :: String)
                 Right b -> do
-
+		    liftIO $ print b
                     ok $ toResponse ("OK" :: String)
         else
             badRequest $ toResponse ("Error: Parameter 'id' must be all digits" :: String)
