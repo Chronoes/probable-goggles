@@ -82,6 +82,7 @@ executable server
   build-depends:       base >=4.8 && <4.10,
                        probable-goggles,
                        directory >=1.2,
+                       transformers >=0.4,
                        bytestring >=0.10,
                        random >=1.1,
                        sqlite-simple >=0.4,
