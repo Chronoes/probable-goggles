@@ -1,5 +1,8 @@
 module Handler.Request (
-doDownload,
+shouldDownload,
+tooLazyToDownload,
+forwardDownload,
+initDownload,
 getDownloaderIp,
 forwardFile
 ) where
@@ -56,7 +59,8 @@ contactNeighbours db (clientIp, _) action = DB.withConnection db $ \dbc -> do
     res <- DB.query dbc
         "SELECT ip, port FROM alive_neighbours WHERE ip <> ?"
         (DB.Only clientIp) :: IO [(String, String)]
-    forM_ res $ \(ip, port) -> action (ip, read port :: Int) >>= handleResponse
+    forM_ res $ \(ip, port) ->
+        let peer = (ip, read port) in action peer >>= handleResponse peer
 
 forwardDownload :: String -> Host -> Int -> String -> IO()
 forwardDownload db peer i = contactNeighbours db peer . sendDownloadRequest i
@@ -71,27 +75,13 @@ initDownload peer reqId url = do
                 (Just . S.unpack . fromMaybe "text/plain" . lookup hContentType $ responseHeaders res)
                 (encodeContent $ responseBody res)
         s -> sendReq $ FileBody s Nothing Nothing
-    where sendReq b = sendFileRequest reqId b peer >>= handleResponse
+    where sendReq b = sendFileRequest reqId b peer >>= handleResponse peer
 
 tooLazyToDownload :: Float -> Bool -> IO Bool
 tooLazyToDownload _ False = return True
 tooLazyToDownload laziness True = do
     rand <- randomIO
     return $ (rand :: Float) >= laziness
-
-doDownload :: String -> Host -> Int -> String -> Float -> IO()
-doDownload db peer reqId url laziness = do
-    isLazy <- tooLazyToDownload laziness =<< shouldDownload db peer reqId url
-    forkIO $ handleDl isLazy
-    DB.withConnection db $ \dbc ->
-        DB.execute dbc
-            "UPDATE requests SET action = ? WHERE request_id = ?"
-            (dlAction isLazy, reqId)
-    where handleDl True = forwardDownload db peer reqId url
-          handleDl False = initDownload peer reqId url
-          dlAction :: Bool -> String
-          dlAction True = "forward"
-          dlAction False = "download"
 
 
 -- /file related functions
@@ -119,7 +109,7 @@ getDownloaderIp db (ip, port) reqId = DB.withConnection db $ \dbc -> do
         _ -> return $ Left False
 
 
-forwardFile :: Either Bool Host -> String -> Host -> Int -> Maybe RqBody -> IO (Either (Maybe String) L.ByteString)
+forwardFile :: Either Bool Host -> String -> Host -> Int -> Maybe RqBody -> IO (Either (Maybe String) FileBody)
 forwardFile (Left False) _ _ _ _ = return $ Left Nothing
 forwardFile _ _ _ _ Nothing = return . Left $ Just "Error: Request body empty"
 forwardFile (Left True) db peer i (Just b) = do
@@ -128,10 +118,7 @@ forwardFile (Left True) db peer i (Just b) = do
 forwardFile (Right ("127.0.0.1", _)) _ _ _ (Just b) =
     case JSON.decode $ unBody b of
         Nothing -> return . Left $ Just "Error: Invalid body format"
-        Just body -> return . handleFaultyBody . decodeContent $ rawContent body
-    where handleFaultyBody (Left err) = Left . Just $ "Error: " ++ err
-          handleFaultyBody (Right "") = Left $ Just "Error: Empty body"
-          handleFaultyBody (Right b) = Right b
-forwardFile (Right downloader) _ _ i (Just b) = do
-    forkIO $ sendRawFileRequest i (unBody b) downloader >>= handleResponse
+        Just body -> return $ Right body
+forwardFile (Right downloader) _ peer i (Just b) = do
+    forkIO $ sendRawFileRequest i (unBody b) downloader >>= handleResponse peer
     return $ Left Nothing

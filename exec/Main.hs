@@ -5,6 +5,8 @@ import Control.Concurrent (forkIO, threadDelay)
 import Control.Exception (try)
 import Data.Foldable (forM_)
 
+import System.Directory (createDirectoryIfMissing)
+
 import Happstack.Server (ServerPart, Response, Conf(..), Host, dir, nullConf, simpleHTTP)
 import qualified Data.Aeson as JSON
 import qualified Database.SQLite.Simple as DB
@@ -20,11 +22,12 @@ import qualified ConfigParser as C
 
 handleRequest :: (String -> String) -> Int -> ServerPart Response
 handleRequest conf port = msum [
-        dir "download" $ download db port (read $ conf "laziness"),
-        dir "file" $ file db port,
+        dir "download" $ download db port cacheDir (read $ conf "laziness"),
+        dir "file" $ file db port cacheDir,
         notFound
     ]
     where db = conf "db"
+          cacheDir = conf "cacheDir"
 
 
 server :: Conf -> (String -> String) -> IO()
@@ -88,6 +91,8 @@ main = do
     let confLookup a = fromJust $ lookup a conf
         port = if null args then confLookup "port" else head args
         servConf = nullConf { port = read port :: Int }
+
+    createDirectoryIfMissing True $ confLookup "cacheDir"
 
     putStrLn $ "Started server on port " ++ port
 

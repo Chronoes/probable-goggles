@@ -1,4 +1,4 @@
-SQL?=./exec/db.sql
+SQL?=./conf/db.sql
 
 # pass to make as dbfile=<filename> for different name
 dbfile?=db.sqlite
@@ -26,8 +26,9 @@ client: build-lib bin
 	cp ./.cabal-sandbox/bin/client ./$(BIN_FOLDER)
 
 conf: bin
-	@cat ./exec/server.conf.default | sed "s/db =.*/db = $(dbfile)/" > .server.conf
+	@cat ./conf/server.conf.default | sed "s/db =.*/db = $(dbfile)/" > .server.conf
 	@mv -i .server.conf ./$(BIN_FOLDER)/$(conffile)
+	@rm -f .server.conf
 
 initdb: bin
 ifeq ($(shell [ -e $(BIN_FOLDER)/$(dbfile) ] && echo 1 || echo 0), 1)
