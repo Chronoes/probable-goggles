@@ -46,7 +46,7 @@ file db servicePort = do
                 Left (Just e) -> badRequest $ toResponse e
                 Left Nothing -> ok $ toResponse ("OK" :: String)
                 Right b -> do
-		    liftIO $ print b
+                    liftIO $ print b
                     ok $ toResponse ("OK" :: String)
         else
             badRequest $ toResponse ("Error: Parameter 'id' must be all digits" :: String)
