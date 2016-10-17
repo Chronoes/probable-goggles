@@ -77,7 +77,7 @@ tooLazyToDownload :: Float -> Bool -> IO Bool
 tooLazyToDownload _ False = return True
 tooLazyToDownload laziness True = do
     rand <- randomIO :: IO Float
-    return $ rand >= laziness
+    return $ rand < laziness
 
 doDownload :: String -> Host -> Int -> String -> Float -> IO()
 doDownload db peer reqId url laziness = do
