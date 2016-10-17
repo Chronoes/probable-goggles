@@ -27,7 +27,7 @@ userAgent = (hUserAgent, "probable-goggles/0.1.0.0")
 sendRequest :: Request -> IO StdResponse
 sendRequest r = do
     manager <- newManager tlsManagerSettings
-    print r
+    putStrLn . S.unpack $ S.unwords [method r, "request sent to", host r]
     httpLbs r { requestHeaders = userAgent : requestHeaders r } manager
 
 convertToValue :: (Show a) => a -> Maybe S.ByteString
@@ -53,5 +53,5 @@ sendFileRequest :: Int -> FileBody -> Host -> IO StdResponse
 sendFileRequest reqId b = sendRawFileRequest reqId (JSON.encode b)
 
 downloadFromURL :: String -> IO StdResponse
-downloadFromURL url = parseRequest url >>= sendRequest
+downloadFromURL url = parseRequest standardUrl >>= sendRequest
     where standardUrl = if take 4 url /= "http" then "http://" ++ url else url

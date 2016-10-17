@@ -26,7 +26,8 @@ WHERE
 CREATE TABLE requests (
     request_id integer PRIMARY KEY,
     url text,
-    initiated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+    initiated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    action varchar(20)
 );
 
 

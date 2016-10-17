@@ -5,13 +5,13 @@ import Control.Concurrent (forkIO, threadDelay)
 import Control.Exception (try)
 import Data.Foldable (forM_)
 
-import Happstack.Server (dir, nullConf, simpleHTTP, ServerPart, Response, Conf(..), Host)
+import Happstack.Server (ServerPart, Response, Conf(..), Host, dir, nullConf, simpleHTTP)
 import qualified Data.Aeson as JSON
 import qualified Database.SQLite.Simple as DB
 import qualified Data.ByteString.Lazy as L
 
-import Handler.Request
-import Handler.Client (StdResponse, downloadFromURL, responseBody, HttpException)
+import Routes
+import Handler.Client (StdResponse, HttpException, downloadFromURL, responseBody)
 import qualified ConfigParser as C
 
 {-
@@ -20,7 +20,7 @@ import qualified ConfigParser as C
 
 handleRequest :: (String -> String) -> Int -> ServerPart Response
 handleRequest conf port = msum [
-        dir "download" $ download db port (read $ conf "laziness" :: Float),
+        dir "download" $ download db port (read $ conf "laziness"),
         dir "file" $ file db port,
         notFound
     ]
@@ -53,7 +53,7 @@ neighbourChecker :: String -> String -> IO()
 neighbourChecker db dir
     | take 4 dir == "file" = do
         putStrLn "neighbours: Reading from file"
-        L.readFile (drop 6 dir) >>= save
+        L.readFile (drop 7 dir) >>= save
         putStrLn "neighbours: neighbours added"
     | otherwise = do
         putStrLn "neighbours: Pinging peer server..."
@@ -67,16 +67,11 @@ neighbourChecker db dir
                 save $ responseBody resp
                 putStrLn "neighbours: neighbours added"
 
-    where sleep1m = threadDelay $ 60 * 1000 * 1000
+    where sleep m = threadDelay $ m * 60 * 1000 * 1000
           continue = do
-              sleep1m
+              sleep 2
               neighbourChecker db dir
           save = saveNeighbours db continue . JSON.decode
-
-readConfig :: String -> IO [C.Config]
-readConfig f = do
-    conf <- readFile f
-    return $ C.parseFile conf
 
 
 defaultArgs :: [String] -> [String]
@@ -88,7 +83,7 @@ main = do
     _args <- getArgs
     let file:args = defaultArgs _args
 
-    conf <- readConfig file
+    conf <- C.readConfig file
 
     let confLookup a = fromJust $ lookup a conf
         port = if null args then confLookup "port" else head args

@@ -1,20 +1,16 @@
 module Handler.Request (
-download,
-file,
-Handler.Request.notFound
+doDownload,
+getDownloaderIp,
+forwardFile
 ) where
 
-import Data.Char (isDigit)
 import Data.Foldable (forM_)
-import Data.Traversable (forM)
 import Data.Maybe (fromMaybe, fromJust)
-import Control.Monad ((>=>))
 
-import Control.Monad.IO.Class (liftIO)
 import System.Random (randomIO)
 import Control.Concurrent (forkIO)
 
-import Happstack.Server as HS
+import Happstack.Server (Host, RqBody, unBody)
 import Network.HTTP.Types.Header (hContentType)
 import Network.HTTP.Types.Status (statusCode)
 import qualified Data.Aeson as JSON
@@ -23,7 +19,7 @@ import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
 import qualified Database.SQLite.Simple as DB
 
-import Handler.Client as C
+import Handler.Client
 import Handler.Response
 import Handler.Types
 
@@ -55,7 +51,7 @@ shouldDownload db (ip, _) reqId url = DB.withConnection db $ \dbc -> do
         _ -> return False
 
 
-contactNeighbours :: String -> Host -> (Host -> IO C.StdResponse) -> IO()
+contactNeighbours :: String -> Host -> (Host -> IO StdResponse) -> IO()
 contactNeighbours db (clientIp, _) action = DB.withConnection db $ \dbc -> do
     res <- DB.query dbc
         "SELECT ip, port FROM alive_neighbours WHERE ip <> ?"
@@ -87,9 +83,15 @@ doDownload :: String -> Host -> Int -> String -> Float -> IO()
 doDownload db peer reqId url laziness = do
     isLazy <- tooLazyToDownload laziness =<< shouldDownload db peer reqId url
     forkIO $ handleDl isLazy
-    return ()
+    DB.withConnection db $ \dbc ->
+        DB.execute dbc
+            "UPDATE requests SET action = ? WHERE request_id = ?"
+            (dlAction isLazy, reqId)
     where handleDl True = forwardDownload db peer reqId url
           handleDl False = initDownload peer reqId url
+          dlAction :: Bool -> String
+          dlAction True = "forward"
+          dlAction False = "download"
 
 
 -- /file related functions
@@ -117,58 +119,19 @@ getDownloaderIp db (ip, port) reqId = DB.withConnection db $ \dbc -> do
         _ -> return $ Left False
 
 
-forwardFile :: Either Bool Host -> String -> Host -> Int -> Maybe RqBody -> IO (Maybe String)
-forwardFile (Left False) _ _ _ _ = return Nothing
-forwardFile _ _ _ _ Nothing = return $ Just "Error: Request body empty"
+forwardFile :: Either Bool Host -> String -> Host -> Int -> Maybe RqBody -> IO (Either (Maybe String) L.ByteString)
+forwardFile (Left False) _ _ _ _ = return $ Left Nothing
+forwardFile _ _ _ _ Nothing = return . Left $ Just "Error: Request body empty"
 forwardFile (Left True) db peer i (Just b) = do
     forkIO . contactNeighbours db peer . sendRawFileRequest i $ unBody b
-    return Nothing
-forwardFile (Right ("127.0.0.1", _)) _ _ _ (Just b) = do
-    putStrLn "Downloaded body:"
-    print $ unBody b
-    putStrLn "Decoded body:"
-    print . decodeContent $ rawContent $ fromJust (JSON.decode $ unBody b :: Maybe FileBody)
-    return Nothing
+    return $ Left Nothing
+forwardFile (Right ("127.0.0.1", _)) _ _ _ (Just b) =
+    case JSON.decode $ unBody b of
+        Nothing -> return . Left $ Just "Error: Invalid body format"
+        Just body -> return . handleFaultyBody . decodeContent $ rawContent body
+    where handleFaultyBody (Left err) = Left . Just $ "Error: " ++ err
+          handleFaultyBody (Right "") = Left $ Just "Error: Empty body"
+          handleFaultyBody (Right b) = Right b
 forwardFile (Right downloader) _ _ i (Just b) = do
     forkIO $ sendRawFileRequest i (unBody b) downloader >>= handleResponse
-    return Nothing
-
-
--- HTTP Handlers
-download :: String -> Int -> Float -> ServerPart HS.Response
-download db sp laziness = do
-    HS.method GET
-    rid <- look "id"
-    url <- look "url"
-    if all isDigit rid
-        then let reqId = read rid :: Int
-            in do
-            req <- askRq
-            let peer = (fst $ rqPeer req, sp)
-            liftIO $ doDownload db peer reqId url laziness
-            ok $ toResponse ("OK" :: String)
-        else
-            badRequest $ toResponse ("Error: Parameter 'id' must be all digits" :: String)
-
-file :: String -> Int -> ServerPart HS.Response
-file db sp = do
-    HS.method POST
-    rid <- look "id"
-    if all isDigit rid
-        then let reqId = read rid :: Int
-            in do
-            req <- askRq
-            let peer = (fst $ rqPeer req, sp)
-            downloader <- liftIO $ getDownloaderIp db peer reqId
-
-            err <- liftIO $ forwardFile downloader db peer reqId =<< takeRequestBody req
-            case err of
-                (Just e) -> badRequest $ toResponse e
-                _ -> ok $ toResponse ("OK" :: String)
-        else
-            badRequest $ toResponse ("Error: Parameter 'id' must be all digits" :: String)
-
-notFound :: ServerPart HS.Response
-notFound = do
-    req <- askRq
-    HS.notFound . toResponse $ unwords ["Error: Cannot", show $ rqMethod req, rqUri req ++ rqQuery req]
+    return $ Left Nothing

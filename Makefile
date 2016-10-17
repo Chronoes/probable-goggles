@@ -8,17 +8,22 @@ conffile?=server.conf
 
 BIN_FOLDER=bin
 
-.PHONY: server conf db
+.PHONY: build-lib server conf db client
 
-all: initdb server
+all: initdb conf server client
 
 bin:
 	mkdir -p $(BIN_FOLDER)
 
-server: bin conf
+build-lib:
 	cabal sandbox init
 	cabal install -j
+
+server: build-lib bin
 	cp ./.cabal-sandbox/bin/server ./$(BIN_FOLDER)
+
+client: build-lib bin
+	cp ./.cabal-sandbox/bin/client ./$(BIN_FOLDER)
 
 conf: bin
 	@cat ./exec/server.conf.default | sed "s/db =.*/db = $(dbfile)/" > .server.conf

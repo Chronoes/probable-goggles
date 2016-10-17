@@ -19,3 +19,8 @@ isCommentOrEmpty (x:xs) = x == ';'
 
 parseFile :: String -> [Config]
 parseFile = map splitKeyValue . filter (not . isCommentOrEmpty) . lines
+
+readConfig :: FilePath -> IO [Config]
+readConfig f = do
+    conf <- readFile f
+    return $ parseFile conf
