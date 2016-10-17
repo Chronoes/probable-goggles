@@ -101,7 +101,7 @@ file db servicePort cacheDir = do
             result <- liftIO $ forwardFile downloader db peer reqId =<< takeRequestBody req
             case result of
                 Left (Just e) -> do
-                    logToStdout $ "/file: Failed with error: " ++ e
+                    logToStdout $ "/file: Failed with error from " ++ fst peer ++ " :: " ++ e
                     badRequest $ toResponse e
                 Left Nothing -> do
                     logToStdout $ "/file: Request forwarded to " ++ either (const "neighbours") fst downloader
