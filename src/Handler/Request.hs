@@ -114,7 +114,7 @@ getDownloaderIp db (ip, port) reqId = DB.withConnection db $ \dbc -> do
             DB.execute dbc
                 "UPDATE routing SET file_ip = ? WHERE request_id = ?"
                 (ip, reqId)
-            return $ Right (ip, port)
+            return $ Right (d, port)
         [(Nothing, Nothing)] -> error "Both download_ip and file_ip in routing table cannot be NULL"
         _ -> return $ Left False
 

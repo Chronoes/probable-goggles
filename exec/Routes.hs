@@ -40,6 +40,7 @@ file db servicePort = do
             let peer = (fst $ rqPeer req, read $ fromMaybe (show servicePort) port)
             liftIO $ print $ "File request from " ++ fst peer
             downloader <- liftIO $ getDownloaderIp db peer reqId
+            liftIO $ print downloader
 
             result <- liftIO $ forwardFile downloader db peer reqId =<< takeRequestBody req
             case result of
