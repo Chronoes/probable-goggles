@@ -102,8 +102,7 @@ executable client
 
   build-depends:       base >=4.8 && <4.10,
                        probable-goggles,
-                    --    bytestring >=0.10,
-                    --    text >=1.2,
+                       transformers >=0.4,
                        http-types >=0.9,
                        random >=1.1,
                        happstack-server >=7.3
