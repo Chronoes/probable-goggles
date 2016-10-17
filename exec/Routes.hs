@@ -16,18 +16,22 @@ import Happstack.Server
 
 import Handler.Request
 import Handler.Types
+import Logger
 
 
 parseHost :: Int -> ServerPart Host
 parseHost servicePort = do
     req <- askRq
-    port <- optional $ queryString $ look "port"
+    port <- optional . queryString $ look "port"
     return (fst $ rqPeer req, read $ fromMaybe (show servicePort) port)
 
 
 doDownload :: String -> Host -> Int -> String -> Float -> IO()
 doDownload db peer reqId url laziness = do
     isLazy <- tooLazyToDownload laziness =<< shouldDownload db peer reqId url
+    putStrLn =<< formatString (unwords [
+        if isLazy then "Forwarding" else "Downloading", "request from", fst peer ++ ':':show (snd peer),
+        show reqId, "URL:", url])
     forkIO $ handleDl isLazy
     DB.withConnection db $ \dbc ->
         DB.execute dbc
@@ -49,7 +53,7 @@ waitForResponse count file
             else do
                 sleep
                 waitForResponse (pred count) file
-    where sleep = threadDelay $ 100 * 1000
+    where sleep = threadDelay $ 10 * 1000
 
 download :: String -> Int -> FilePath -> Float -> ServerPart Response
 download db servicePort cacheDir laziness = do
@@ -63,12 +67,17 @@ download db servicePort cacheDir laziness = do
             liftIO $ doDownload db peer reqId url laziness
             case fst peer of
                 "127.0.0.1" -> do
-                    result <- liftIO $ waitForResponse 200 $ cacheDir ++ rid
+                    logToStdout "/download: Waiting for response to send to client"
+                    result <- liftIO $ waitForResponse 2000 $ cacheDir ++ rid
                     case result of
-                        Left s -> resp 408 $ toResponse ("Timeout" :: String)
-                        Right fb -> ok $ toResponseBS
-                            (S.pack . fromMaybe "text/plain" $ mimeType fb)
-                            (maybe "Error: no body" (decodeContent' . Just) $ rawContent fb)
+                        Left s -> do
+                            logToStdout "/download: No data to send to client"
+                            resp 408 $ toResponse ("Timeout" :: String)
+                        Right fb -> do
+                            logToStdout "/download: Sending response to client"
+                            ok $ toResponseBS
+                                (S.pack . fromMaybe "text/plain" $ mimeType fb)
+                                (maybe "Error: no body" (decodeContent' . Just) $ rawContent fb)
                 _ -> ok $ toResponse ("OK" :: String)
         else
             badRequest $ toResponse ("Error: Parameter 'id' must be all digits" :: String)
@@ -91,12 +100,19 @@ file db servicePort cacheDir = do
             req <- askRq
             result <- liftIO $ forwardFile downloader db peer reqId =<< takeRequestBody req
             case result of
-                Left (Just e) -> badRequest $ toResponse e
-                Left Nothing -> ok $ toResponse ("OK" :: String)
+                Left (Just e) -> do
+                    logToStdout $ "/file: Failed with error: " ++ e
+                    badRequest $ toResponse e
+                Left Nothing -> do
+                    logToStdout $ "/file: Request forwarded to " ++ either (const "neighbours") fst downloader
+                    ok $ toResponse ("OK" :: String)
                 Right b ->
                     case handleFaultyBody . decodeContent $ rawContent b of
-                        Left err -> badRequest $ toResponse err
+                        Left err -> do
+                            logToStdout $ "/file: Failed reading body: " ++ err
+                            badRequest $ toResponse err
                         Right _ -> do
+                            logToStdout $ "/file: Writing file to " ++ cacheDir ++ rid
                             liftIO $ L.writeFile (cacheDir ++ rid) (JSON.encode b)
                             ok $ toResponse ("OK" :: String)
         else

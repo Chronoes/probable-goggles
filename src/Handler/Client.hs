@@ -18,6 +18,7 @@ import qualified Data.ByteString.Char8 as S
 import qualified Data.Aeson as JSON
 
 import Handler.Types
+import Logger
 
 type StdResponse = Response L.ByteString
 
@@ -27,7 +28,9 @@ userAgent = (hUserAgent, "probable-goggles/0.1.0.0")
 sendRequest :: Request -> IO StdResponse
 sendRequest r = do
     manager <- newManager tlsManagerSettings
-    putStrLn . S.unpack $ S.unwords [method r, "request sent to", host r `S.append` ":" `S.append` (S.pack . show $ port r)]
+    putStrLn =<< (formatString . S.unpack $ S.unwords [method r, "request sent to", host r `S.append` ":" `S.append` (S.pack . show $ port r)])
+    let (RequestBodyLBS b) = requestBody r
+    print b
     httpLbs r { requestHeaders = userAgent : requestHeaders r } manager
 
 setHost :: Host -> Request -> Request

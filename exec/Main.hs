@@ -13,6 +13,7 @@ import qualified Database.SQLite.Simple as DB
 import qualified Data.ByteString.Lazy as L
 
 import Routes
+import Logger
 import Handler.Client (StdResponse, HttpException, downloadFromURL, responseBody)
 import qualified ConfigParser as C
 
@@ -55,20 +56,20 @@ saveNeighbours db continue (Just list) = do
 neighbourChecker :: String -> String -> IO()
 neighbourChecker db dir
     | take 4 dir == "file" = do
-        putStrLn "neighbours: Reading from file"
+        putStrLn =<< formatString "neighbours: Reading from file"
         L.readFile (drop 7 dir) >>= save
-        putStrLn "neighbours: neighbours added"
+        putStrLn =<< formatString "neighbours: neighbours added"
     | otherwise = do
-        putStrLn "neighbours: Pinging peer server..."
+        putStrLn =<< formatString "neighbours: Pinging peer server..."
         res <- try (downloadFromURL dir) :: IO (Either HttpException StdResponse)
         case res of
             Left _ -> do
-                putStrLn "neighbours: No response from peer server"
+                putStrLn =<< formatString "neighbours: No response from peer server"
                 continue
             Right resp -> do
                 print $ responseBody resp
                 save $ responseBody resp
-                putStrLn "neighbours: neighbours added"
+                putStrLn =<< formatString "neighbours: neighbours added"
 
     where sleep m = threadDelay $ m * 60 * 1000 * 1000
           continue = do
@@ -94,7 +95,7 @@ main = do
 
     createDirectoryIfMissing True $ confLookup "cacheDir"
 
-    putStrLn $ "Started server on port " ++ port
+    putStrLn =<< formatString ("Started server on port " ++ port)
 
     forkIO $ neighbourChecker (confLookup "db") (confLookup "directory")
     server servConf confLookup

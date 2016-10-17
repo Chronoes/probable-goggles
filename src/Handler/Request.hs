@@ -81,7 +81,7 @@ tooLazyToDownload :: Float -> Bool -> IO Bool
 tooLazyToDownload _ False = return True
 tooLazyToDownload laziness True = do
     rand <- randomIO
-    return $ (rand :: Float) >= laziness
+    return $ (rand :: Float) < laziness
 
 
 -- /file related functions
@@ -104,13 +104,13 @@ getDownloaderIp db (ip, port) reqId = DB.withConnection db $ \dbc -> do
             DB.execute dbc
                 "UPDATE routing SET file_ip = ? WHERE request_id = ?"
                 (ip, reqId)
-            return $ Right (ip, port)
+            return $ Right (d, port)
         [(Nothing, Nothing)] -> error "Both download_ip and file_ip in routing table cannot be NULL"
         _ -> return $ Left False
 
 
 forwardFile :: Either Bool Host -> String -> Host -> Int -> Maybe RqBody -> IO (Either (Maybe String) FileBody)
-forwardFile (Left False) _ _ _ _ = return $ Left Nothing
+forwardFile (Left False) _ _ reqId _ = return . Left . Just $ "Error: Seen request " ++ show reqId ++ " already"
 forwardFile _ _ _ _ Nothing = return . Left $ Just "Error: Request body empty"
 forwardFile (Left True) db peer i (Just b) = do
     forkIO . contactNeighbours db peer . sendRawFileRequest i $ unBody b
