@@ -49,11 +49,11 @@ library
   default-extensions: OverloadedStrings, FlexibleContexts
 
   exposed-modules:    ConfigParser,
+                      Logger,
                       Handler.Request,
                       Handler.Response,
-                      Handler.Client
-
-  other-modules:      Handler.Types
+                      Handler.Client,
+                      Handler.Types
 
   build-depends:      base >=4.8 && <4.10,
                       bytestring >=0.10,
@@ -61,6 +61,7 @@ library
                       text >=1.2,
                       transformers >=0.4,
                       random >=1.1,
+                      time >=1.6,
                       sqlite-simple >=0.4,
                       aeson >=1.0,
                       http-types >=0.9,
@@ -82,6 +83,8 @@ executable server
 
   build-depends:       base >=4.8 && <4.10,
                        probable-goggles,
+                       directory >=1.2,
+                       transformers >=0.4,
                        bytestring >=0.10,
                        transformers >=0.4,
                        random >=1.1,
@@ -102,8 +105,8 @@ executable client
 
   build-depends:       base >=4.8 && <4.10,
                        probable-goggles,
-                    --    bytestring >=0.10,
-                    --    text >=1.2,
+                       transformers >=0.4,
+                       http-types >=0.9,
                        random >=1.1,
                        happstack-server >=7.3
 

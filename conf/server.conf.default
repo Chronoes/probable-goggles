@@ -2,6 +2,8 @@
 port = 1215
 ; Database connection
 db = db.sqlite
+; Directory to cache response data in
+cacheDir = /tmp/anon-network/
 
 ; Catalog service
 ; Use file:// scheme to read peers from file

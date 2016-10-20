@@ -5,12 +5,15 @@ import Control.Concurrent (forkIO, threadDelay)
 import Control.Exception (try)
 import Data.Foldable (forM_)
 
+import System.Directory (createDirectoryIfMissing)
+
 import Happstack.Server (ServerPart, Response, Conf(..), Host, dir, nullConf, simpleHTTP)
 import qualified Data.Aeson as JSON
 import qualified Database.SQLite.Simple as DB
-import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy.Char8 as L
 
 import Routes
+import Logger
 import Handler.Client (StdResponse, HttpException, downloadFromURL, responseBody)
 import qualified ConfigParser as C
 
@@ -20,11 +23,12 @@ import qualified ConfigParser as C
 
 handleRequest :: (String -> String) -> Int -> ServerPart Response
 handleRequest conf port = msum [
-        dir "download" $ download db port (read $ conf "laziness"),
-        dir "file" $ file db port,
+        dir "download" $ download db port cacheDir (read $ conf "laziness"),
+        dir "file" $ file db port cacheDir,
         notFound
     ]
     where db = conf "db"
+          cacheDir = conf "cacheDir"
 
 
 server :: Conf -> (String -> String) -> IO()
@@ -52,20 +56,21 @@ saveNeighbours db continue (Just list) = do
 neighbourChecker :: String -> String -> IO()
 neighbourChecker db dir
     | take 4 dir == "file" = do
-        putStrLn "neighbours: Reading from file"
+        putStrLn =<< formatString "neighbours: Reading from file"
         L.readFile (drop 7 dir) >>= save
-        putStrLn "neighbours: neighbours added"
+        putStrLn =<< formatString "neighbours: neighbours added"
     | otherwise = do
-        putStrLn "neighbours: Pinging peer server..."
+        putStrLn =<< formatString "neighbours: Pinging peer server..."
         res <- try (downloadFromURL dir) :: IO (Either HttpException StdResponse)
         case res of
             Left _ -> do
-                putStrLn "neighbours: No response from peer server"
+                putStrLn =<< formatString "neighbours: No response from peer server"
                 continue
-            Right resp -> do
-                print $ responseBody resp
-                save $ responseBody resp
-                putStrLn "neighbours: neighbours added"
+            Right resp ->
+                let body = responseBody resp
+                in do
+                putStrLn =<< formatString ("neighbours: neighbours added: " ++ L.unpack body)
+                save body
 
     where sleep m = threadDelay $ m * 60 * 1000 * 1000
           continue = do
@@ -89,7 +94,9 @@ main = do
         port = if null args then confLookup "port" else head args
         servConf = nullConf { port = read port :: Int }
 
-    putStrLn $ "Started server on port " ++ port
+    createDirectoryIfMissing True $ confLookup "cacheDir"
+
+    putStrLn =<< formatString ("Started server on port " ++ port)
 
     forkIO $ neighbourChecker (confLookup "db") (confLookup "directory")
     server servConf confLookup

@@ -1,7 +1,10 @@
 module Handler.Response where
 
-import Handler.Client (StdResponse, responseBody)
+import qualified Data.ByteString.Lazy.Char8 as L
+import Happstack.Server (Host)
 
--- TODO: Do I need to handle this? marked just in case
-handleResponse :: StdResponse -> IO()
-handleResponse = print . responseBody
+import Handler.Client (StdResponse, responseBody)
+import Logger
+
+handleResponse :: Host -> StdResponse -> IO()
+handleResponse (ip, _) r = putStrLn =<< formatString (unlines ["Response from " ++ ip, L.unpack $ responseBody r])
