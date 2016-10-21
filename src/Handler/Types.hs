@@ -1,7 +1,5 @@
 module Handler.Types where
 
-import Data.Maybe (fromJust)
-import Data.Either (either)
 import Data.Monoid ((<>))
 import Data.Text.Lazy (Text)
 import Data.Aeson ((.=), (.:), (.:?), ToJSON, FromJSON, Value(Object), parseJSON, toJSON, toEncoding, object, pairs)
@@ -39,7 +37,7 @@ decodeContent Nothing = Left "No content to decode"
 decodeContent (Just c) = S64.decode $ encodeUtf8 c
 
 decodeContent' :: Maybe Text -> ByteString
-decodeContent' c = either (const "") id . S64.decode . encodeUtf8 $ fromJust c
+decodeContent' = either (const "") id . decodeContent
 
 encodeContent :: ByteString -> Maybe Text
 encodeContent = Just . decodeUtf8 . S64.encode
